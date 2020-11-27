@@ -20,23 +20,29 @@ class UserHandler():
             Username=username
         )
 
-    def storeUserInDB(self, userId, userPoolId, username):
+    def storeUserInDB(self, userId, userPoolId, username, firstName = None, lastName = None, email = None):
         checkUserQuery = ("SELECT id, firstName, lastName, username, email, active FROM User WHERE id = %s")
         params = (userId,)
         results = self.db.get(checkUserQuery, params)
-        print(results, flush=True)
         if not results:
-            cognitoUser = self.getUser(userPoolId, username)
-            user = { 'id': None, 'active': False, 'email': None }
-            for attribute in cognitoUser['UserAttributes']:
-                if attribute['Name'] == 'sub':
-                    user['id'] = attribute['Value']
-                elif attribute['Name'] == 'email_verified':
-                    user['active'] = attribute['Value'] == 'true'
-                elif attribute['Name'] == 'email':
-                    user['email'] = attribute['Value']
+            user = { 'id': None, 'active': False, 'email': None, 'firstName': None, 'lastName': None}
+            try:
+                cognitoUser = self.getUser(userPoolId, username)
+                for attribute in cognitoUser['UserAttributes']:
+                    if attribute['Name'] == 'sub':
+                        user['id'] = attribute['Value']
+                    elif attribute['Name'] == 'email_verified':
+                        user['active'] = attribute['Value'] == 'true'
+                    elif attribute['Name'] == 'email':
+                        user['email'] = attribute['Value']
+            except Exception:
+                user['id'] = userId
+                user['active'] = 1
+                user['email'] = email
+                user['firstName'] = firstName
+                user['lastName'] = lastName
             addUser = ("INSERT INTO User "
-                        "(id, email, active, username) "
-                        "VALUES (%s, %s, %s, %s)")
-            dataUser = (user['id'], user['email'], user['active'], username)
+                        "(id, email, active, username, firstName, lastName) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)")
+            dataUser = (user['id'], user['email'], user['active'], username, user['firstName'], user['lastName'])
             self.db.add(addUser, dataUser)
